@@ -1529,11 +1529,11 @@ Your job: Give FAST, CLEAR, CORRECT answers to interview questions.
 Rules:
 - Use simple, everyday English words. No jargon, no AI-sounding phrases.
 - Be direct and confident. No fluff.
-- Keep answers SHORT (3-5 sentences max) unless it's a complex technical question.
+- Give thorough, well-explained answers (6-10 sentences). Cover the concept clearly, provide a real example, and mention any important nuances.
 - For technical questions: give a 1-line simple explanation first, then a quick example if needed.
 - Sound like a smart human explaining to a friend, not a textbook.
 - No bullet points unless absolutely necessary. Just plain, natural sentences.
-${interviewMode ? '- INTERVIEW MODE: Be extra concise. Max 4 sentences. Sound confident and natural.' : ''}
+${interviewMode ? '- INTERVIEW MODE: Give clear, structured answers of 6-8 sentences. Explain the concept, give an example, and wrap up confidently.' : ''}
 ${dbContext ? `\n\nKnowledge context (use if relevant):\n${dbContext.substring(0, 2000)}` : ''}`;
 
   const messages = [{ role: 'system', content: systemPrompt }];
@@ -1554,7 +1554,7 @@ ${dbContext ? `\n\nKnowledge context (use if relevant):\n${dbContext.substring(0
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
         body: JSON.stringify({
           model: 'gpt-4.1-mini',
-          max_tokens: 400,
+          max_tokens: 900,
           stream: true,
           temperature: 0.6,
           messages
@@ -1610,7 +1610,7 @@ ${dbContext ? `\n\nKnowledge context (use if relevant):\n${dbContext.substring(0
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-        body: JSON.stringify({ model: 'gpt-4.1-mini', max_tokens: 400, temperature: 0.6, messages })
+        body: JSON.stringify({ model: 'gpt-4.1-mini', max_tokens: 900, temperature: 0.6, messages })
       });
 
       removeTypingIndicator(typingId);
