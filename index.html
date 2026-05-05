@@ -763,6 +763,49 @@
   }
 
   .msg-bubble strong { color: white; font-weight: 600; }
+
+  /* STAR MODE STYLING */
+  .toggle-pill.active.gold {
+    background: rgba(255,214,10,0.12);
+    border-color: rgba(255,214,10,0.4);
+    color: var(--accent4);
+    box-shadow: 0 0 16px rgba(255,214,10,0.15);
+  }
+
+  .star-block {
+    margin: 6px 0;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .star-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 5px 10px 4px;
+    border-radius: 8px 8px 0 0;
+  }
+
+  .star-s .star-label { background: rgba(0,122,255,0.25); color: #60AFFF; }
+  .star-t .star-label { background: rgba(255,159,10,0.2); color: #FFBD3C; }
+  .star-a .star-label { background: rgba(48,209,88,0.2); color: #4CD96A; }
+  .star-r .star-label { background: rgba(191,90,242,0.2); color: #D09FF5; }
+
+  .star-content {
+    padding: 8px 12px 10px;
+    font-size: 13.5px;
+    line-height: 1.65;
+    border-radius: 0 8px 8px 8px;
+  }
+
+  .star-s .star-content { background: rgba(0,122,255,0.07); border: 1px solid rgba(0,122,255,0.15); border-top: none; }
+  .star-t .star-content { background: rgba(255,159,10,0.07); border: 1px solid rgba(255,159,10,0.15); border-top: none; }
+  .star-a .star-content { background: rgba(48,209,88,0.06); border: 1px solid rgba(48,209,88,0.15); border-top: none; }
+  .star-r .star-content { background: rgba(191,90,242,0.07); border: 1px solid rgba(191,90,242,0.15); border-top: none; }
 </style>
 </head>
 <body>
@@ -845,6 +888,10 @@
     <div class="toggle-pill" id="toggle-stream" onclick="toggleFeature('stream')">
       <span class="toggle-icon">⚡</span>
       <span>Streaming</span>
+    </div>
+    <div class="toggle-pill" id="toggle-star" onclick="toggleFeature('star')">
+      <span class="toggle-icon">⭐</span>
+      <span>STAR Mode</span>
     </div>
   </div>
 
@@ -974,6 +1021,7 @@ let autoCorrectEnabled = false;
 let contextEnabled = false;
 let streamEnabled = true;
 let voiceEnabled = true;
+let starModeEnabled = false;
 let uploadedFiles = [];
 let dbContext = '';
 let chatHistory = [];
@@ -1534,6 +1582,18 @@ Rules:
 - Sound like a smart human explaining to a friend, not a textbook.
 - No bullet points unless absolutely necessary. Just plain, natural sentences.
 ${interviewMode ? '- INTERVIEW MODE: Give clear, structured answers of 6-8 sentences. Explain the concept, give an example, and wrap up confidently.' : ''}
+${starModeEnabled ? `- STAR MODE ACTIVE: Structure your answer strictly in 4 clearly labeled sections using this EXACT format (always include all 4 headers):
+
+##SITUATION##
+[Describe the context or background — 2-3 sentences]
+##TASK##
+[Describe your specific responsibility or challenge — 2-3 sentences]
+##ACTION##
+[Describe the concrete steps YOU personally took — 3-4 sentences]
+##RESULT##
+[Describe the measurable outcome or impact — 2-3 sentences with numbers/metrics if possible]
+
+Use first-person. Be specific. Make it sound like a real story from Vishwajeet's experience.` : ''}
 ${dbContext ? `\n\nKnowledge context (use if relevant):\n${dbContext.substring(0, 2000)}` : ''}`;
 
   const messages = [{ role: 'system', content: systemPrompt }];
@@ -1676,6 +1736,56 @@ function updateMessageContent(msgId, content) {
 
 function formatContent(text) {
   if (!text) return '<span style="opacity:0.3">...</span>';
+
+  // STAR mode: detect ##SECTION## markers and render as cards
+  if (text.includes('##SITUATION##') || text.includes('##TASK##') || text.includes('##ACTION##') || text.includes('##RESULT##')) {
+    const starSections = [
+      { key: 'SITUATION', icon: '🎬', label: 'Situation', cls: 'star-s' },
+      { key: 'TASK',      icon: '🎯', label: 'Task',      cls: 'star-t' },
+      { key: 'ACTION',    icon: '⚡', label: 'Action',    cls: 'star-a' },
+      { key: 'RESULT',    icon: '🏆', label: 'Result',    cls: 'star-r' },
+    ];
+
+    let html = '';
+    let remaining = text;
+
+    // Extract any leading text before first ## marker
+    const firstMarker = remaining.search(/##(SITUATION|TASK|ACTION|RESULT)##/);
+    if (firstMarker > 0) {
+      const preText = remaining.substring(0, firstMarker).trim();
+      if (preText) html += `<div style="margin-bottom:10px;line-height:1.6;">${escapeAndFormat(preText)}</div>`;
+      remaining = remaining.substring(firstMarker);
+    }
+
+    starSections.forEach((sec, idx) => {
+      const startTag = `##${sec.key}##`;
+      const nextKeys = starSections.slice(idx + 1).map(s => `##${s.key}##`);
+      const startIdx = remaining.indexOf(startTag);
+      if (startIdx === -1) return;
+
+      let contentStart = startIdx + startTag.length;
+      let contentEnd = remaining.length;
+
+      for (const nk of nextKeys) {
+        const nIdx = remaining.indexOf(nk, contentStart);
+        if (nIdx !== -1 && nIdx < contentEnd) contentEnd = nIdx;
+      }
+
+      const content = remaining.substring(contentStart, contentEnd).trim();
+      html += `
+        <div class="star-block ${sec.cls}">
+          <div class="star-label">${sec.icon} ${sec.label}</div>
+          <div class="star-content">${escapeAndFormat(content)}</div>
+        </div>`;
+    });
+
+    return html || escapeAndFormat(text);
+  }
+
+  return escapeAndFormat(text);
+}
+
+function escapeAndFormat(text) {
   return text
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
@@ -1743,6 +1853,7 @@ function toggleFeature(feature) {
     'autocorrect': { var: () => { autoCorrectEnabled = !autoCorrectEnabled; return autoCorrectEnabled; }, id: 'toggle-autocorrect', label: 'Auto-fix' },
     'context': { var: () => { contextEnabled = !contextEnabled; return contextEnabled; }, id: 'toggle-context', label: 'Context' },
     'stream': { var: () => { streamEnabled = !streamEnabled; return streamEnabled; }, id: 'toggle-stream', label: 'Streaming' },
+    'star': { var: () => { starModeEnabled = !starModeEnabled; return starModeEnabled; }, id: 'toggle-star', color: 'gold', label: 'STAR Mode' },
   };
 
   const f = toggleMap[feature];
